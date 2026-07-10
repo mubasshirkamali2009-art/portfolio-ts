@@ -11,7 +11,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  
+
 
   user: {
     additionalFields: {
@@ -29,3 +29,7 @@ export const auth = betterAuth({
     client,
   }),
 });
+
+// Reuse this same connection anywhere else on the server (e.g. API
+// routes) instead of opening a second MongoDB connection.
+export { db, client };

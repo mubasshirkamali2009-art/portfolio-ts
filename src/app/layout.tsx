@@ -3,6 +3,9 @@ dns.setDefaultResultOrder('ipv4first')
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from 'react-hot-toast';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +32,23 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Navbar></Navbar>
+        {children}
+        <Footer></Footer>
+        <Toaster position="top-center"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: "#1a1d27",
+              color: "#e5e7eb",
+              border: "1px solid #2a2e3a",
+              fontSize: "14px",
+            },
+            success: { iconTheme: { primary: "#818cf8", secondary: "#1a1d27" } },
+            error: { iconTheme: { primary: "#f87171", secondary: "#1a1d27" } },
+          }}></Toaster>
+        </body>
     </html>
   );
 }
