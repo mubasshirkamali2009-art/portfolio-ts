@@ -1,3 +1,5 @@
+import dns from 'node:dns'
+dns.setDefaultResultOrder('ipv4first')
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
