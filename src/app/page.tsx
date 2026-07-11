@@ -1,5 +1,8 @@
+import CVSection from "@/components/CoverLettar";
+import DeveloperLife from "@/components/DepolopersLife";
 import FeaturedProjects from "@/components/FututreProjects";
 import Hero from "@/components/HeroSection";
+import MyJourney from "@/components/MyJourny";
 import SkillsSection from "@/components/Skills";
 import StatsSection from "@/components/Stats";
 
@@ -11,6 +14,9 @@ export default function Home() {
  <FeaturedProjects/>
  <SkillsSection></SkillsSection>
  <StatsSection></StatsSection>
+ <MyJourney></MyJourney>
+ <DeveloperLife></DeveloperLife>
+ <CVSection></CVSection>
     </div>
   );
 }

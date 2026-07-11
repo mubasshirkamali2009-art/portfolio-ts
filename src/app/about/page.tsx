@@ -11,6 +11,7 @@ import gymImage from "../../resourece/gym.jpeg"
 import rooftopImage from "../../resourece/rooftop-restorent.jpeg"
 import travelImage from "../../resourece/relaxing-on-dextop-chair.jpeg"
 import prof from "../../resourece/prof.jpg"
+import CVSection from "@/components/CoverLettar"
 
 interface CardProps {
   imgSrc: any;
@@ -116,6 +117,7 @@ export default function AboutPage() {
             );
           })}
         </div>
+ <CVSection></CVSection>
 
       </div>
     </section>
