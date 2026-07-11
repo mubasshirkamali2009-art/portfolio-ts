@@ -222,9 +222,9 @@ const portfolioStories = [
   {
     imgSrc: rooftopImage,
     tag: "Workspace & Mindset",
-    title: "Rooftop Calmness & Clarity",
+    title: "Rooftop ",
     description:
-      "This rooftop environment represents the place where I often relax, think, and organize ideas. Fresh surroundings help me find creative solutions for complex development challenges.",
+      "2024 jan 3  ",
     hueA: 230,
     hueB: 250,
   },
