@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback, ChangeEvent, DragEvent, FormEvent } from "react";
+import { useState, useRef, ChangeEvent, DragEvent, FormEvent } from "react";
 import {
   UploadCloud,
   X,
@@ -7,7 +7,6 @@ import {
   Clock,
   Loader2,
   ImagePlus,
-  CheckCircle2,
   AlertCircle,
 } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
@@ -15,7 +14,8 @@ import { FaLinkedin } from "react-icons/fa6";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
-const IMGBB_API_KEY = ""; // optional: hardcode your imgbb key here, or paste it in the field below
+const IMGBB_API_KEY = "e3eeed8b6ec741ec8f894c190fdeeff1"; 
+const MAX_IMAGES = 5;
 
 type FormState = {
   title: string;
@@ -29,17 +29,6 @@ type FormState = {
   shortDescription: string;
   purpose: string;
   fullDescription: string;
-};
-
-type ImageStatus = "uploading" | "done" | "error";
-
-type ImageItem = {
-  id: string;
-  name: string;
-  previewUrl: string;
-  status: ImageStatus;
-  url: string | null;
-  error?: string;
 };
 
 const emptyForm: FormState = {
@@ -85,8 +74,11 @@ export default function AddProjectForm() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
-  const [images, setImages] = useState<ImageItem[]>([]);
-  const [apiKey, setApiKey] = useState(IMGBB_API_KEY);
+  
+  // আপনার আইডিয়া করা কোডের মতো ফাইল অবজেক্ট এবং প্রিভিউ আলাদা স্টেটে রাখা হলো
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -95,73 +87,33 @@ export default function AddProjectForm() {
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const uploadToImgbb = useCallback(
-    async (file: File, localId: string) => {
-      if (!apiKey) {
-        setImages((imgs) =>
-          imgs.map((img) =>
-            img.id === localId
-              ? { ...img, status: "error", error: "Missing imgbb API key" }
-              : img
-          )
-        );
-        return;
+  const handleFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const incoming = Array.from(files);
+    const room = MAX_IMAGES - imageFiles.length;
+
+    if (room <= 0) {
+      toast.error(`You can upload up to ${MAX_IMAGES} images.`);
+      return;
+    }
+
+    const accepted: File[] = [];
+    for (const file of incoming.slice(0, room)) {
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please upload image files only.");
+        continue;
       }
-      try {
-        const base64: string = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve((reader.result as string).split(",")[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+      accepted.push(file);
+    }
 
-        const body = new URLSearchParams();
-        body.append("image", base64);
-
-        const res = await fetch(
-          `https://api.imgbb.com/1/upload?key=${apiKey}`,
-          { method: "POST", body }
-        );
-        const data = await res.json();
-
-        if (!res.ok || !data?.data?.url) {
-          throw new Error(data?.error?.message || "Upload failed");
-        }
-
-        setImages((imgs) =>
-          imgs.map((img) =>
-            img.id === localId
-              ? { ...img, status: "done", url: data.data.url }
-              : img
-          )
-        );
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Upload failed";
-        setImages((imgs) =>
-          imgs.map((img) =>
-            img.id === localId
-              ? { ...img, status: "error", error: message }
-              : img
-          )
-        );
-      }
-    },
-    [apiKey]
-  );
-
-  const handleFiles = (fileList: FileList | null) => {
-    const files = Array.from(fileList || []).filter((f) =>
-      f.type.startsWith("image/")
-    );
-    files.forEach((file) => {
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const previewUrl = URL.createObjectURL(file);
-      setImages((imgs) => [
-        ...imgs,
-        { id, name: file.name, previewUrl, status: "uploading", url: null },
+    if (accepted.length > 0) {
+      setImageFiles((prev) => [...prev, ...accepted]);
+      setImagePreviews((prev) => [
+        ...prev,
+        ...accepted.map((f) => URL.createObjectURL(f)),
       ]);
-      uploadToImgbb(file, id);
-    });
+    }
   };
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -169,12 +121,27 @@ export default function AddProjectForm() {
     handleFiles(e.dataTransfer.files);
   };
 
-  const removeImage = (id: string) =>
-    setImages((imgs) => imgs.filter((img) => img.id !== id));
+  const removeImageAt = (index: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
 
-  const retryImage = (id: string) => {
-    setImages((imgs) => imgs.filter((i) => i.id !== id));
-    toast.error("Re-add that image to retry the upload");
+  // ImgBB-তে ফাইল FormData আকারে আপলোড করার মূল মেথড
+  const uploadImageToImgBB = async (file: File) => {
+    const imgFormData = new FormData();
+    imgFormData.append("image", file);
+    
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+      method: "POST",
+      body: imgFormData,
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to upload one or more images to ImgBB.");
+    }
+
+    const data = await res.json();
+    return data.data.url;
   };
 
   const validate = () => {
@@ -182,8 +149,12 @@ export default function AddProjectForm() {
     if (!form.title.trim()) errs.title = "Required";
     if (!form.shortDescription.trim()) errs.shortDescription = "Required";
     if (!form.fullDescription.trim()) errs.fullDescription = "Required";
-    if (form.hours && isNaN(Number(form.hours)))
-      errs.hours = "Enter a number";
+    if (form.hours && isNaN(Number(form.hours))) errs.hours = "Enter a number";
+
+    if (imageFiles.length === 0) {
+      toast.error("At least one project image is required.");
+      return false;
+    }
 
     (["liveLink", "githubLink", "linkedinLink"] as const).forEach((key) => {
       const val = form[key].trim();
@@ -203,17 +174,25 @@ export default function AddProjectForm() {
     }
 
     setSubmitting(true);
-    const payload = {
-      ...form,
-      hours: form.hours ? Number(form.hours) : null,
-      techStack: form.techStack
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
-      images: images.filter((i) => i.status === "done").map((i) => i.url),
-    };
 
     try {
+      // ১. সাবমিট করার সময় সমান্তরালভাবে (Parallel) সব ইমেজ ImgBB তে আপলোড করা হচ্ছে
+      const uploadedImageUrls = await Promise.all(
+        imageFiles.map((file) => uploadImageToImgBB(file))
+      );
+
+      // ২. পেলোড ডাটা সাজানো
+      const payload = {
+        ...form,
+        hours: form.hours ? Number(form.hours) : null,
+        techStack: form.techStack
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+        images: uploadedImageUrls, // আপলোড হওয়া ফাইনাল URLs
+      };
+
+      // ৩. আপনার প্রজেক্ট এপিআই এ ডেটা পাঠানো
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -227,9 +206,10 @@ export default function AddProjectForm() {
 
       toast.success("Project added successfully!");
       setForm(emptyForm);
-      setImages([]);
+      setImageFiles([]);
+      setImagePreviews([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       router.refresh();
-      // router.push("/projects"); // uncomment to redirect after save
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
       toast.error(message);
@@ -237,8 +217,6 @@ export default function AddProjectForm() {
       setSubmitting(false);
     }
   };
-
-  const uploadingCount = images.filter((i) => i.status === "uploading").length;
 
   return (
     <div className="min-h-screen w-full bg-[#0a0a10] px-4 py-10 text-slate-100 sm:px-6 lg:px-8">
@@ -397,17 +375,8 @@ export default function AddProjectForm() {
           <div className="mt-5">
             <Field
               label="Project images"
-              hint={uploadingCount ? `uploading ${uploadingCount}...` : "hosted via imgbb"}
+              hint={`Selected: ${imageFiles.length} / ${MAX_IMAGES}`}
             >
-              {!IMGBB_API_KEY && (
-                <input
-                  className={`${inputClasses} mb-2.5`}
-                  placeholder="Paste your imgbb API key"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                />
-              )}
-
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={onDrop}
@@ -422,7 +391,7 @@ export default function AddProjectForm() {
                   or drag and drop images here
                 </p>
                 <p className="text-xs text-slate-600">
-                  PNG, JPG, GIF up to imgbb&apos;s limit
+                  PNG, JPG, GIF up to 5MB each
                 </p>
                 <input
                   ref={fileInputRef}
@@ -437,58 +406,41 @@ export default function AddProjectForm() {
                 />
               </div>
 
-              {images.length > 0 && (
+              {imagePreviews.length > 0 && (
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                  {images.map((img) => (
+                  {imagePreviews.map((src, i) => (
                     <div
-                      key={img.id}
+                      key={src}
                       className="group relative aspect-square overflow-hidden rounded-lg border border-white/10 bg-[#0e0e17]"
                     >
                       <img
-                        src={img.url || img.previewUrl}
-                        alt={img.name}
+                        src={src}
+                        alt={`Preview ${i + 1}`}
                         className="h-full w-full object-cover"
                       />
                       <button
                         type="button"
-                        onClick={() => removeImage(img.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeImageAt(i);
+                        }}
                         className="absolute right-1.5 top-1.5 rounded-full bg-black/70 p-1 text-white opacity-0 transition group-hover:opacity-100"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
-
-                      {img.status === "uploading" && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                          <Loader2 className="h-5 w-5 animate-spin text-indigo-300" />
-                        </div>
-                      )}
-                      {img.status === "error" && (
-                        <div
-                          className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/70 p-2 text-center cursor-pointer"
-                          onClick={() => retryImage(img.id)}
-                        >
-                          <AlertCircle className="h-4 w-4 text-red-400" />
-                          <span className="text-[10px] text-red-300">
-                            Failed — click to remove &amp; retry
-                          </span>
-                        </div>
-                      )}
-                      {img.status === "done" && (
-                        <div className="absolute bottom-1.5 right-1.5 rounded-full bg-emerald-500/90 p-0.5">
-                          <CheckCircle2 className="h-3 w-3 text-white" />
-                        </div>
-                      )}
                     </div>
                   ))}
 
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 text-slate-500 transition hover:border-indigo-500/50 hover:text-indigo-300"
-                  >
-                    <ImagePlus className="h-5 w-5" />
-                    <span className="text-xs">Add more</span>
-                  </button>
+                  {imagePreviews.length < MAX_IMAGES && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 text-slate-500 transition hover:border-indigo-500/50 hover:text-indigo-300"
+                    >
+                      <ImagePlus className="h-5 w-5" />
+                      <span className="text-xs">Add more</span>
+                    </button>
+                  )}
                 </div>
               )}
             </Field>
@@ -498,11 +450,11 @@ export default function AddProjectForm() {
           <div className="mt-8 flex justify-end">
             <button
               type="submit"
-              disabled={submitting || uploadingCount > 0}
+              disabled={submitting}
               className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {submitting ? "Submitting..." : "Submit project"}
+              {submitting ? "Uploading & Saving..." : "Submit project"}
             </button>
           </div>
         </form>
