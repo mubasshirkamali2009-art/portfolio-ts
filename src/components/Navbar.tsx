@@ -41,11 +41,22 @@ export default function Navbar() {
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const user = session?.user as SessionUser | undefined;
   const isAdmin = user?.role === "admin";
   const initials = getInitials(user?.name, user?.email);
+
+  // Treat the session as "still pending" until the component has mounted on
+  // the client, so the very first client render matches the server render.
+  // This avoids hydration mismatches when the session resolves faster than
+  // React can hydrate (e.g. from a cached cookie/localStorage read).
+  const showLoading = !mounted || isPending;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -96,7 +107,7 @@ export default function Navbar() {
           ))}
 
           {/* only admins see these in the top nav */}
-          {!isPending && isAdmin && (
+          {!showLoading && isAdmin && (
             <>
               <Link
                 href="/projects/add"
@@ -119,7 +130,7 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          {isPending ? (
+          {showLoading ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-neutral-800" />
           ) : user ? (
             <div className="relative" ref={dropdownRef}>
@@ -228,7 +239,7 @@ export default function Navbar() {
             ))}
 
             {/* only admins see these in mobile menu */}
-            {!isPending && isAdmin && (
+            {!showLoading && isAdmin && (
               <>
                 <Link
                   href="/projects/add"
@@ -247,7 +258,7 @@ export default function Navbar() {
           </div>
 
           <div className="mt-3 border-t border-neutral-800 pt-3">
-            {isPending ? (
+            {showLoading ? (
               <div className="h-8 w-full animate-pulse rounded-lg bg-neutral-900" />
             ) : user ? (
               <div className="space-y-2">
