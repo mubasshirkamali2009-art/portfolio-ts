@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Star, ImageIcon, ArrowUpRight, Sparkles } from "lucide-react";
+import { Star, ImageIcon, ArrowUpRight, Sparkles, FolderOpen } from "lucide-react";
 
 interface FeaturedProject {
   _id: any;
@@ -22,6 +22,62 @@ function getSafeId(idObj: any): string {
   if (idObj.$oid) return idObj.$oid;
   if (idObj.toString) return idObj.toString();
   return String(idObj);
+}
+
+// ---------------------------------------------------------------------------
+// Loading spinner — layered rings + pulsing core, matches the purple/indigo theme
+// ---------------------------------------------------------------------------
+function FeaturedProjectsSpinner() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-5 py-24">
+      <div className="relative h-16 w-16">
+        <motion.span
+          className="absolute inset-0 rounded-full border-2 border-transparent border-t-indigo-500 border-r-indigo-500/60"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        />
+        <motion.span
+          className="absolute inset-1.5 rounded-full border-2 border-transparent border-b-purple-500 border-l-purple-500/60"
+          animate={{ rotate: -360 }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "linear" }}
+        />
+        <motion.span
+          className="absolute inset-[10px] rounded-full bg-gradient-to-br from-indigo-500 to-purple-500"
+          animate={{ scale: [1, 0.75, 1], opacity: [1, 0.6, 1] }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
+      <motion.p
+        className="text-sm font-medium tracking-wide text-neutral-400"
+        animate={{ opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+      >
+        Loading featured projects...
+      </motion.p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Empty state — shown when there are no featured projects
+// ---------------------------------------------------------------------------
+function NoFeaturedProjects() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/30 py-24 text-center"
+    >
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-900">
+        <FolderOpen className="h-7 w-7 text-neutral-600" />
+      </div>
+      <div>
+        <p className="font-medium text-neutral-300">No highlighted projects yet</p>
+        <p className="mt-1 text-sm text-neutral-500">Check back soon for featured work.</p>
+      </div>
+    </motion.div>
+  );
 }
 
 export default function FeaturedProjects() {
@@ -50,9 +106,6 @@ export default function FeaturedProjects() {
     fetchFeatured();
   }, []);
 
-  // Nothing featured yet → don't render an empty section on the homepage
-  if (!loading && projects.length === 0) return null;
-
   return (
     <section className="relative w-full px-4 py-16 sm:px-6 md:py-20 lg:px-8">
       <div className="mx-auto max-w-6xl">
@@ -79,14 +132,9 @@ export default function FeaturedProjects() {
 
         {/* Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-72 animate-pulse rounded-2xl border border-neutral-900 bg-neutral-900/40"
-              />
-            ))}
-          </div>
+          <FeaturedProjectsSpinner />
+        ) : projects.length === 0 ? (
+          <NoFeaturedProjects />
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project, idx) => {
