@@ -1,6 +1,7 @@
 import FeaturedProjects from "@/components/FututreProjects";
 import Hero from "@/components/HeroSection";
 import SkillsSection from "@/components/Skills";
+import StatsSection from "@/components/Stats";
 
 
 export default function Home() {
@@ -9,6 +10,7 @@ export default function Home() {
       <Hero/>
  <FeaturedProjects/>
  <SkillsSection></SkillsSection>
+ <StatsSection></StatsSection>
     </div>
   );
 }
