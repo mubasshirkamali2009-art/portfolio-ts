@@ -78,9 +78,16 @@ export default function ProjectDetailsPage({ params }: ProjectDetailsPageProps) 
       const data = await res.json();
       if (data.success) {
         setProject(data.project);
-        // Automatically default the display state to the first image in the array if it exists
-        if (data.project.images && data.project.images.length > 0) {
+        // Default the display state to the first valid (non-empty) image in the array, if any
+        if (
+          data.project.images &&
+          Array.isArray(data.project.images) &&
+          data.project.images.length > 0 &&
+          data.project.images[0]
+        ) {
           setSelectedImage(data.project.images[0]);
+        } else {
+          setSelectedImage(null);
         }
       } else {
         toast.error(data.message || "Failed to load project details.");
@@ -127,7 +134,9 @@ export default function ProjectDetailsPage({ params }: ProjectDetailsPageProps) 
     return String(idObj);
   };
 
-  const projectImages = Array.isArray(project.images) ? project.images : [];
+  const projectImages = Array.isArray(project.images)
+    ? project.images.filter((img) => !!img)
+    : [];
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-200 antialiased selection:bg-purple-500/30 p-4 md:p-12">
@@ -153,11 +162,11 @@ export default function ProjectDetailsPage({ params }: ProjectDetailsPageProps) 
         </div>
 
         {/* Dynamic Image Display Blocks */}
-        {selectedImage && (
+        {selectedImage ? (
           <div className="space-y-4">
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 transition-transform duration-500 hover:scale-[1.005]">
               <Image 
-                src={project.images} 
+                src={selectedImage}
                 alt={`${project.title} screenshot`}
                 fill
                 priority
@@ -179,6 +188,10 @@ export default function ProjectDetailsPage({ params }: ProjectDetailsPageProps) 
                 ))}
               </div>
             )}
+          </div>
+        ) : (
+          <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 flex items-center justify-center">
+            <span className="text-neutral-600 text-sm">No image available</span>
           </div>
         )}
 
