@@ -1,116 +1,115 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, db } from "@/lib/auth";
-import { ObjectId } from "mongodb";
+import { auth, db } from "@/lib/auth"; // Using your exact auth configuration paths
 
-interface Review {
-  userId: string;
-  userName: string;
-  userImage: string | null;
-  comment: string;
-  rating: number;
-  createdAt: Date;
-}
-
-// GET: Fetch All Projects OR Single Project based on Query Parameter
+// GET: Fetch all projects from the database
 export async function GET(req: NextRequest) {
   try {
+    // Access your target collection from MongoDB
     const projectsCollection = db.collection("projectscollection");
 
-    // URL theke query parameter 'id' ber kora (jemon: /api/projects?id=123)
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    // ১. Jodi URL-e kono ID thake, tahole single project fetch korbe
-    if (id) {
-      if (!ObjectId.isValid(id)) {
-        return NextResponse.json({ success: false, message: "Invalid Project ID" }, { status: 400 });
-      }
-
-      const project = await projectsCollection.findOne({ _id: new ObjectId(id) });
-
-      if (!project) {
-        return NextResponse.json({ success: false, message: "Project not found" }, { status: 404 });
-      }
-
-      return NextResponse.json({ success: true, project });
-    }
-
-    // ২. Jodi URL-e kono ID NA thake (jemon shudhu /api/projects), tahole sob project array hisebe pathabe
+    // Fetch all documents from the collection as an array
     const projects = await projectsCollection.find({}).toArray();
-    return NextResponse.json({ success: true, projects });
 
-  } catch (error) {
-    console.error("Error fetching projects:", error);
-    return NextResponse.json({ success: false, message: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { 
+        success: true, 
+        projects 
+      }, 
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("Error fetching all projects:", error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: "Internal Server Error", 
+        error: error.message 
+      }, 
+      { status: 500 }
+    );
   }
 }
 
-// POST: Add Comment and Rating (Apnar ager dynamic id parameterer jaygay URL searchParams hobe)
+// POST: Add a completely new project to your portfolio
 export async function POST(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    if (!id || !ObjectId.isValid(id)) {
-      return NextResponse.json({ success: false, message: "Invalid or missing Project ID" }, { status: 400 });
-    }
-
-    // Authenticate the user using better-auth
+    // 1. Authenticate the user via better-auth session headers
     const session = await auth.api.getSession({ headers: req.headers });
     if (!session || !session.user) {
-      return NextResponse.json({ success: false, message: "Unauthorized. Please log in." }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "Unauthorized. Please log in first." }, 
+        { status: 401 }
+      );
     }
 
+    // 2. Parse incoming JSON body from the frontend form
     const body = await req.json();
-    const { comment, rating } = body;
+    const { 
+      title, 
+      liveLink, 
+      githubLink, 
+      linkedinLink, 
+      techStack, 
+      category, 
+      date, 
+      hours, 
+      shortDescription, 
+      purpose, 
+      fullDescription, 
+      images 
+    } = body;
 
-    if (!comment?.trim() || !rating || rating < 1 || rating > 5) {
-      return NextResponse.json({ success: false, message: "Valid comment and rating (1-5) are required." }, { status: 400 });
+    // 3. Simple backend validation check for required fields
+    if (!title || !shortDescription || !fullDescription) {
+      return NextResponse.json(
+        { success: false, message: "Missing required fields (Title, Short Description, or Full Description)." }, 
+        { status: 400 }
+      );
     }
 
-    const projectsCollection = db.collection("projectscollection");
-    const project = await projectsCollection.findOne({ _id: new ObjectId(id) });
-
-    if (!project) {
-      return NextResponse.json({ success: false, message: "Project not found" }, { status: 404 });
-    }
-
-    // New review object
-    const newReview: Review = {
-      userId: session.user.id,
-      userName: session.user.name || "Anonymous",
-      userImage: session.user.image || null,
-      comment: comment.trim(),
-      rating: Number(rating),
+    // 4. Construct the new project document structure
+    const newProject = {
+      title,
+      liveLink: liveLink || "",
+      githubLink: githubLink || "",
+      linkedinLink: linkedinLink || "",
+      techStack: Array.isArray(techStack) ? techStack : [],
+      category: category || "web",
+      date: date ? new Date(date) : new Date(),
+      hours: Number(hours) || 0,
+      shortDescription,
+      purpose: purpose || "",
+      fullDescription,
+      images: Array.isArray(images) ? images : [],
+      reviews: [], // Default empty array for incoming ratings
+      averageRating: 0,
+      reviewCount: 0,
+      userId: session.user.id, // Tracks which user added it
       createdAt: new Date(),
+      updatedAt: new Date()
     };
 
-    const currentReviews: Review[] = project.reviews || [];
-    const updatedReviews = [...currentReviews, newReview];
+    // 5. Save the document into MongoDB
+    const projectsCollection = db.collection("projectscollection");
+    const result = await projectsCollection.insertOne(newProject);
 
-    const totalRating = updatedReviews.reduce((sum: number, rev: Review) => sum + rev.rating, 0);
-    const averageRating = parseFloat((totalRating / updatedReviews.length).toFixed(1));
-
-    // Update MongoDB Document
-    await projectsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      {
-        $set: {
-          reviews: updatedReviews,
-          averageRating: averageRating,
-          reviewCount: updatedReviews.length,
-        },
-      }
+    return NextResponse.json(
+      { 
+        success: true, 
+        message: "Project created successfully!", 
+        projectId: result.insertedId 
+      }, 
+      { status: 201 }
     );
-
-    return NextResponse.json({
-      success: true,
-      message: "Review added successfully",
-      reviews: updatedReviews,
-      averageRating,
-    });
-  } catch (error) {
-    console.error("Error adding review:", error);
-    return NextResponse.json({ success: false, message: "Internal Server Error" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Error creating project:", error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: "Internal Server Error", 
+        error: error.message 
+      }, 
+      { status: 500 }
+    );
   }
 }

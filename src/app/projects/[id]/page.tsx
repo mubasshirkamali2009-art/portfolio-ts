@@ -1,349 +1,284 @@
 "use client";
-import { useEffect, useState, FormEvent } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client"; // 1. প্রথমে authClient ইমপোর্ট করুন
-import { Loader2, Calendar, Clock, ExternalLink, Star, MessageSquare } from "lucide-react";
-import { FaGithub, FaLinkedin } from "react-icons/fa";
+import Image from "next/image";
+import Link from "next/link";
 import toast from "react-hot-toast";
+import { 
+  SiTailwindcss, SiTypescript, SiJavascript, 
+  SiMongodb, SiPostgresql, SiPrisma, SiDocker, 
+  SiFirebase, SiExpress, SiSupabase, SiRedux, SiCplusplus 
+} from "react-icons/si";
+import { 
+  FaJava, FaPhp, FaVuejs, FaAngular, FaReact, FaNodeJs,
+  FaArrowLeft, FaGithub, FaGlobe
+} from "react-icons/fa6";
 
-// 2. authClient থেকে useSession হুকটি বের করে নিন
-const { useSession } = authClient; 
-
-interface Review {
-  userId: string;
-  userName: string;
-  userImage?: string;
-  comment: string;
-  rating: number;
-  createdAt: string;
+interface ProjectDetailsPageProps {
+  params: Promise<{ id: string }>;
 }
 
 interface ProjectData {
-  _id: string;
+  _id: any;
   title: string;
-  liveLink?: string;
-  githubLink?: string;
-  linkedinLink?: string;
+  liveLink: string;
+  githubLink: string;
+  linkedinLink: string;
   techStack: string[];
   category: string;
-  date?: string;
-  hours?: number;
+  date: string;
+  hours: number;
   shortDescription: string;
-  purpose?: string;
+  purpose: string;
   fullDescription: string;
-  images: string[];
-  reviews?: Review[];
-  averageRating?: number;
+  images?: string[];
 }
 
-export default function ProjectDetailsPage({ params }: { params: { id: string } }) {
+const TECH_MAP: Record<string, { icon: React.ComponentType<any>; color: string }> = {
+  "Next.js": { icon: FaReact, color: "text-white" },
+  "React": { icon: FaReact, color: "text-sky-400" },
+  "TypeScript": { icon: SiTypescript, color: "text-blue-500" },
+  "JavaScript": { icon: SiJavascript, color: "text-amber-400" },
+  "Tailwind CSS": { icon: SiTailwindcss, color: "text-teal-400" },
+  "Node.js": { icon: FaNodeJs, color: "text-green-500" },
+  "Express": { icon: SiExpress, color: "text-slate-400" },
+  "MongoDB": { icon: SiMongodb, color: "text-green-600" },
+  "PostgreSQL": { icon: SiPostgresql, color: "text-blue-400" },
+  "Prisma": { icon: SiPrisma, color: "text-purple-500" },
+  "Firebase": { icon: SiFirebase, color: "text-amber-500" },
+  "Supabase": { icon: SiSupabase, color: "text-emerald-500" },
+  "Redux": { icon: SiRedux, color: "text-purple-400" },
+  "C++": { icon: SiCplusplus, color: "text-blue-600" },
+  "Java": { icon: FaJava, color: "text-orange-500" },
+  "PHP": { icon: FaPhp, color: "text-indigo-300" },
+  "Vue.js": { icon: FaVuejs, color: "text-emerald-400" },
+  "Angular": { icon: FaAngular, color: "text-red-500" },
+  "Docker": { icon: SiDocker, color: "text-blue-400" },
+};
+
+export default function ProjectDetailsPage({ params }: ProjectDetailsPageProps) {
   const router = useRouter();
-  const { data: session, isPending: isSessionLoading } = useSession();
+  const unwrappedParams = React.use(params);
+  const projectId = unwrappedParams.id;
 
   const [project, setProject] = useState<ProjectData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeImg, setActiveImg] = useState("");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // Review states
-  const [comment, setComment] = useState("");
-  const [rating, setRating] = useState(5);
-  const [submittingReview, setSubmittingReview] = useState(false);
-
-  // ১. প্রাতিষ্ঠানিক প্রটেকশন এবং ডেটা ফেচিং
-  useEffect(() => {
-    if (!isSessionLoading && !session) {
-      toast.error("Please log in to view project details");
-      router.push("/login");
-      return;
-    }
-
-    if (session) {
-      async function getDetails() {
-        try {
-          const res = await fetch(`/api/projects/${params.id}`);
-          const data = await res.json();
-          if (data.success) {
-            setProject(data.project);
-            if (data.project.images?.length > 0) {
-              setActiveImg(data.project.images[0]);
-            }
-          } else {
-            toast.error(data.message || "Failed to load project details");
-          }
-        } catch (err) {
-          console.error(err);
-          toast.error("Error connecting to server");
-        } finally {
-          setLoading(false);
-        }
-      }
-      getDetails();
-    }
-  }, [session, isSessionLoading, params.id, router]);
-
-  // ২. কমেন্ট এবং রেটিং সাবমিট হ্যান্ডলার
-  const handleReviewSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!comment.trim()) return;
-
-    setSubmittingReview(true);
+  async function getDetails() {
     try {
-      const res = await fetch(`/api/projects/${params.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comment, rating }),
-      });
+      setLoading(true);
+      const res = await fetch(`/api/projects/${projectId}`);
+      
+      if (!res.ok) {
+        throw new Error("Network response was not ok");
+      }
+      
       const data = await res.json();
-
       if (data.success) {
-        toast.success("Thank you for your rating!");
-        setComment("");
-        // লোকাল স্টেট আপডেট করে সাথে সাথে UI পরিবর্তন দেখানো
-        if (project) {
-          setProject({
-            ...project,
-            reviews: data.reviews,
-            averageRating: data.averageRating,
-          });
+        setProject(data.project);
+        // Automatically default the display state to the first image in the array if it exists
+        if (data.project.images && data.project.images.length > 0) {
+          setSelectedImage(data.project.images[0]);
         }
       } else {
-        toast.error(data.message || "Failed to submit review");
+        toast.error(data.message || "Failed to load project details.");
       }
-    } catch (err) {
-      toast.error("Something went wrong");
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      toast.error("Something went wrong while fetching data.");
     } finally {
-      setSubmittingReview(false);
+      setLoading(false);
     }
-  };
+  }
 
-  if (isSessionLoading || loading) {
+  useEffect(() => {
+    if (projectId) {
+      getDetails();
+    }
+  }, [projectId]);
+
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a10]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-950 text-white gap-4">
+        <div className="w-12 h-12 border-4 border-t-purple-500 border-neutral-800 rounded-full animate-spin"></div>
+        <p className="text-neutral-400 text-sm font-medium tracking-wide animate-pulse">Loading project details...</p>
       </div>
     );
   }
 
-  if (!project) return null;
+  if (!project) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-950 text-white gap-4">
+        <p className="text-lg text-neutral-400">Project details could not be found.</p>
+        <button onClick={() => router.back()} className="text-sm text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-2">
+          <FaArrowLeft /> Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const getSafeId = (idObj: any): string => {
+    if (!idObj) return "";
+    if (typeof idObj === "string") return idObj;
+    if (idObj.$oid) return idObj.$oid;
+    if (idObj.toString) return idObj.toString();
+    return String(idObj);
+  };
+
+  const projectImages = Array.isArray(project.images) ? project.images : [];
 
   return (
-    <div className="min-h-screen bg-[#0a0a10] px-4 py-12 text-slate-100 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen bg-neutral-950 text-neutral-200 antialiased selection:bg-purple-500/30 p-4 md:p-12">
+      <div className="max-w-6xl mx-auto space-y-12">
         
-        {/* Title and Stats grid */}
-        <div className="mb-8 flex flex-col justify-between gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-end">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-              {project.category}
-            </span>
-            <h1 className="mt-1 text-3xl font-extrabold text-white sm:text-4xl">
-              {project.title}
-            </h1>
-            <p className="mt-2 text-slate-400">{project.shortDescription}</p>
-          </div>
-          
-          {/* Average Rating Block */}
-          <div className="flex items-center gap-3 rounded-xl border border-white/5 bg-[#0f0f18] px-4 py-3 sm:self-start">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-              <Star className="h-6 w-6 fill-amber-500" />
-            </div>
-            <div>
-              <div className="text-xl font-bold text-white">{project.averageRating || "0.0"} / 5</div>
-              <div className="text-xs text-slate-500">Average Rating</div>
-            </div>
-          </div>
+        {/* Back Navigation */}
+        <button 
+          onClick={() => router.back()}
+          className="group flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-all duration-300"
+        >
+          <FaArrowLeft className="group-hover:-translate-x-1 transition-transform duration-300" />
+          <span>Back to Projects</span>
+        </button>
+
+        {/* Hero Title Elements */}
+        <div className="space-y-4">
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-neutral-200 to-neutral-500 transition-all duration-500">
+            {project.title}
+          </h1>
+          <p className="text-neutral-400 text-lg md:text-xl font-light max-w-3xl leading-relaxed">
+            {project.shortDescription}
+          </p>
         </div>
 
-        {/* Media and Overview Layout */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          
-          {/* Gallery Left/Center (2 cols) */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0f0f18]">
-              <img src={activeImg} alt="Active preview" className="h-full w-full object-cover" />
+        {/* Dynamic Image Display Blocks */}
+        {selectedImage && (
+          <div className="space-y-4">
+            <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 transition-transform duration-500 hover:scale-[1.005]">
+              <Image 
+                src={project.images} 
+                alt={`${project.title} screenshot`}
+                fill
+                priority
+                className="object-cover"
+              />
             </div>
-            {project.images.length > 1 && (
+            {projectImages.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {project.images.map((img, idx) => (
+                {projectImages.map((img, idx) => (
                   <button
-                    key={idx}
-                    onClick={() => setActiveImg(img)}
-                    className={`h-16 w-24 shrink-0 overflow-hidden rounded-lg border-2 transition ${
-                      activeImg === img ? "border-indigo-500" : "border-transparent opacity-60 hover:opacity-100"
+                    key={`${getSafeId(project._id)}-img-${idx}`}
+                    onClick={() => setSelectedImage(img)}
+                    className={`relative w-24 h-16 rounded-lg overflow-hidden border-2 transition-all duration-300 shrink-0 ${
+                      selectedImage === img ? "border-purple-500 scale-95" : "border-transparent opacity-60 hover:opacity-100"
                     }`}
                   >
-                    <img src={img} alt="Thumb" className="h-full w-full object-cover" />
+                    <Image src={img} alt="Thumbnail" fill className="object-cover" />
                   </button>
                 ))}
               </div>
             )}
           </div>
+        )}
 
-          {/* Metadata Sidebar (1 col) */}
-          <div className="rounded-2xl border border-white/10 bg-[#0f0f18] p-6 space-y-6">
-            <h3 className="text-base font-semibold text-white">Project Specs</h3>
-            
-            <div className="space-y-4">
-              {project.date && (
-                <div className="flex items-center gap-3 text-sm text-slate-300">
-                  <Calendar className="h-4 w-4 text-slate-500" />
-                  <span>{new Date(project.date).toLocaleDateString()}</span>
-                </div>
-              )}
-              {project.hours && (
-                <div className="flex items-center gap-3 text-sm text-slate-300">
-                  <Clock className="h-4 w-4 text-slate-500" />
-                  <span>Spent ~{project.hours} working hours</span>
-                </div>
-              )}
-            </div>
+        <hr className="border-neutral-900" />
 
-            {/* Tech stack pills */}
-            <div>
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Built with</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {project.techStack.map((tech) => (
-                  <span key={tech} className="rounded-md bg-white/5 px-2.5 py-1 text-xs text-slate-300 border border-white/5">
-                    {tech}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Links Block */}
-            <div className="pt-4 border-t border-white/5 space-y-2">
-              {project.liveLink && (
-                <a href={project.liveLink} target="_blank" rel="noreferrer" className="flex w-full items-center justify-between rounded-lg bg-indigo-600 px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-indigo-500">
-                  <span>Visit Live App</span>
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                {project.githubLink && (
-                  <a href={project.githubLink} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-[#0e0e17] py-2 text-sm text-slate-300 hover:bg-white/5">
-                    <FaGithub /> GitHub
-                  </a>
-                )}
-                {project.linkedinLink && (
-                  <a href={project.linkedinLink} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-[#0e0e17] py-2 text-sm text-slate-300 hover:bg-white/5">
-                    <FaLinkedin /> LinkedIn
-                  </a>
-                )}
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Descriptions */}
-        <div className="mt-12 space-y-6 max-w-3xl">
-          {project.purpose && (
-            <div>
-              <h3 className="text-lg font-bold text-white mb-2">Purpose & Problem Solved</h3>
-              <p className="text-sm leading-relaxed text-slate-400 whitespace-pre-line">{project.purpose}</p>
-            </div>
-          )}
-          <div>
-            <h3 className="text-lg font-bold text-white mb-2">Detailed Walkthrough</h3>
-            <p className="text-sm leading-relaxed text-slate-300 whitespace-pre-line">{project.fullDescription}</p>
-          </div>
-        </div>
-
-        {/* Feedback Area: Comments & Ratings */}
-        <div className="mt-16 border-t border-white/10 pt-10 grid grid-cols-1 md:grid-cols-5 gap-10">
+        {/* Layout Splitting */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Write a comment (2 cols) */}
-          <div className="md:col-span-2 space-y-4">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-indigo-400" /> Share Feedback
-            </h3>
-            
-            <form onSubmit={handleReviewSubmit} className="space-y-4 rounded-xl border border-white/5 bg-[#0f0f18] p-4">
-              
-              {/* Rating Selector */}
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Select Rating</label>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      type="button"
-                      key={star}
-                      onClick={() => setRating(star)}
-                      className="text-amber-500 focus:outline-none"
+          <div className="lg:col-span-2 space-y-8">
+            <div className="space-y-4 group">
+              <h2 className="text-2xl font-bold text-white group-hover:text-purple-400 transition-colors duration-300">
+                Project Purpose
+              </h2>
+              <p className="text-neutral-400 leading-relaxed text-base whitespace-pre-line">
+                {project.purpose}
+              </p>
+            </div>
+
+            <div className="space-y-4 group">
+              <h2 className="text-2xl font-bold text-white group-hover:text-indigo-400 transition-colors duration-300">
+                Full Specifications
+              </h2>
+              <p className="text-neutral-400 leading-relaxed text-base whitespace-pre-line">
+                {project.fullDescription}
+              </p>
+            </div>
+
+            {/* Built With tokens */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-white">Built With</h3>
+              <div className="flex flex-wrap gap-3">
+                {project.techStack?.map((tech) => {
+                  const target = TECH_MAP[tech];
+                  if (!target) return (
+                    <span key={tech} className="bg-neutral-900 border border-neutral-800 px-4 py-2 text-sm rounded-xl text-neutral-300">
+                      {tech}
+                    </span>
+                  );
+                  const Icon = target.icon;
+                  return (
+                    <div 
+                      key={tech} 
+                      className="flex items-center gap-2.5 bg-neutral-900/60 hover:bg-neutral-900 border border-neutral-800 hover:border-neutral-700 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-500/5 cursor-default"
                     >
-                      <Star className={`h-6 w-6 ${rating >= star ? "fill-amber-500" : "text-slate-600"}`} />
-                    </button>
-                  ))}
+                      <Icon className={`w-5 h-5 ${target.color}`} />
+                      <span className="text-neutral-200">{tech}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar Area */}
+          <div className="space-y-6">
+            <div className="bg-neutral-900/40 backdrop-blur-md border border-neutral-900 p-6 rounded-2xl space-y-6 shadow-xl">
+              <h3 className="font-bold text-lg text-white tracking-wide">Project Details</h3>
+              
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                <div className="border-l-2 border-purple-500 pl-3">
+                  <span className="text-xs text-neutral-500 block uppercase tracking-wider font-semibold">Category</span>
+                  <span className="text-sm font-medium text-neutral-200 capitalize">{project.category}</span>
+                </div>
+                
+                <div className="border-l-2 border-indigo-500 pl-3">
+                  <span className="text-xs text-neutral-500 block uppercase tracking-wider font-semibold">Hours Invested</span>
+                  <span className="text-sm font-medium text-neutral-200">{project.hours} hrs</span>
                 </div>
               </div>
 
-              {/* Comment Input */}
-              <div>
-                <textarea
-                  rows={3}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="What do you think about this project?"
-                  className="w-full rounded-lg border border-white/10 bg-[#0e0e17] p-3 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-indigo-500/50"
-                  required
-                />
+              <hr className="border-neutral-900" />
+
+              <div className="flex flex-col gap-3">
+                {project.liveLink && (
+                  <Link 
+                    href={project.liveLink} 
+                    target="_blank" 
+                    className="flex items-center justify-center gap-2 w-full bg-white text-black font-semibold text-sm py-3 px-4 rounded-xl transition-all duration-300 hover:bg-neutral-200"
+                  >
+                    <FaGlobe className="w-4 h-4" />
+                    <span>Live Preview</span>
+                  </Link>
+                )}
+
+                {project.githubLink && (
+                  <Link 
+                    href={project.githubLink} 
+                    target="_blank" 
+                    className="flex items-center justify-center gap-2 w-full bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-white font-medium text-sm py-3 px-4 rounded-xl transition-all duration-300"
+                  >
+                    <FaGithub className="w-4 h-4 text-neutral-400" />
+                    <span>Source Code</span>
+                  </Link>
+                )}
               </div>
-
-              <button
-                type="submit"
-                disabled={submittingReview || !comment.trim()}
-                className="w-full rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-40"
-              >
-                {submittingReview ? "Submitting..." : "Post Review"}
-              </button>
-            </form>
-          </div>
-
-          {/* Active reviews listed (3 cols) */}
-          <div className="md:col-span-3 space-y-4">
-            <h3 className="text-lg font-bold text-white">
-              User Reviews ({project.reviews?.length || 0})
-            </h3>
-            
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-              {project.reviews && project.reviews.length > 0 ? (
-                project.reviews.map((rev, i) => (
-                  <div key={i} className="rounded-xl border border-white/5 bg-[#0f0f18] p-4 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        {rev.userImage ? (
-                          <img src={rev.userImage} alt="" className="h-6 w-6 rounded-full object-cover" />
-                        ) : (
-                          <div className="h-6 w-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] font-bold">
-                            {rev.userName[0]}
-                          </div>
-                        )}
-                        <span className="text-sm font-medium text-slate-200">{rev.userName}</span>
-                      </div>
-
-                      {/* Stars for this review */}
-                      <div className="flex gap-0.5">
-                        {Array.from({ length: 5 }).map((_, idx) => (
-                          <Star
-                            key={idx}
-                            className={`h-3 w-3 ${idx < rev.rating ? "fill-amber-500 text-amber-500" : "text-slate-700"}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-400 pl-8">{rev.comment}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-slate-600 py-6">No ratings or reviews posted yet. Be the first one!</div>
-              )}
             </div>
-
           </div>
 
         </div>
-
       </div>
-    </div>
+    </main>
   );
 }

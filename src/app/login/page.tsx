@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { authClient } from "@/lib/auth-client";
+import { Link } from "lucide-react";
 
 const DEMO_EMAIL = "mubasshirkamali2009@gmail.com";
 const DEMO_PASSWORD = "bicsbics";
@@ -147,9 +148,9 @@ export default function LoginForm() {
 
                 <p className="mt-5 text-center text-xs sm:text-sm text-neutral-500 animate-fade-in-up [animation-delay:0.3s]">
                   Don&apos;t have an account?{" "}
-                  <a href="/register" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                  <Link href="/register" className="text-indigo-400 hover:text-indigo-300 transition-colors">
                     Register
-                  </a>
+                  </Link>
                 </p>
                 <p className="mt-2 text-center text-[11px] text-neutral-600 animate-fade-in-up [animation-delay:0.35s]">
                   Press <span className="text-indigo-400">Enter</span> to log in, or{" "}

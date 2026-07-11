@@ -9,20 +9,73 @@ import {
   ImagePlus,
   AlertCircle,
 } from "lucide-react";
-import { FaGithub } from "react-icons/fa";
-import { FaLinkedin } from "react-icons/fa6";
+import { 
+  FaGithub, 
+  FaLinkedin, 
+  FaReact, 
+  FaNodeJs, 
+  FaPython, 
+  FaHtml5, 
+  FaCss3Alt, 
+  FaJava,
+  FaPhp,
+  FaVuejs,
+  FaAngular
+} from "react-icons/fa6";
+import { 
+  SiTailwindcss, 
+  SiNextdotjs, 
+  SiTypescript, 
+  SiJavascript, 
+  SiMongodb, 
+  SiPostgresql, 
+  SiPrisma, 
+  SiDocker, 
+  SiFirebase, 
+  SiExpress, 
+  SiSupabase,
+  SiRedux,
+  SiCplusplus,
+  
+} from "react-icons/si";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 const IMGBB_API_KEY = "e3eeed8b6ec741ec8f894c190fdeeff1"; 
 const MAX_IMAGES = 5;
 
+// সহজ ম্যাপ করার জন্য গ্লোবাল টেকনোলজি লিস্ট ডিক্লেয়ার করা হলো
+const AVAILABLE_TECH = [
+  { name: "Next.js", icon: SiNextdotjs, color: "text-white" },
+  { name: "React", icon: FaReact, color: "text-sky-400" },
+  { name: "TypeScript", icon: SiTypescript, color: "text-blue-500" },
+  { name: "JavaScript", icon: SiJavascript, color: "text-amber-400" },
+  { name: "Tailwind CSS", icon: SiTailwindcss, color: "text-teal-400" },
+  { name: "Node.js", icon: FaNodeJs, color: "text-green-500" },
+  { name: "Express", icon: SiExpress, color: "text-slate-400" },
+  { name: "MongoDB", icon: SiMongodb, color: "text-green-400" },
+  { name: "PostgreSQL", icon: SiPostgresql, color: "text-blue-400" },
+  { name: "Prisma", icon: SiPrisma, color: "text-indigo-400" },
+  { name: "Firebase", icon: SiFirebase, color: "text-amber-500" },
+  { name: "Supabase", icon: SiSupabase, color: "text-emerald-500" },
+  { name: "Redux", icon: SiRedux, color: "text-purple-500" },
+  { name: "Python", icon: FaPython, color: "text-yellow-500" },
+  { name: "C++", icon: SiCplusplus, color: "text-blue-600" },
+
+  { name: "Java", icon: FaJava, color: "text-orange-500" },
+  { name: "PHP", icon: FaPhp, color: "text-indigo-300" },
+  { name: "Vue.js", icon: FaVuejs, color: "text-emerald-400" },
+  { name: "Angular", icon: FaAngular, color: "text-red-500" },
+  { name: "Docker", icon: SiDocker, color: "text-blue-400" },
+  { name: "HTML5", icon: FaHtml5, color: "text-orange-600" },
+  { name: "CSS3", icon: FaCss3Alt, color: "text-blue-400" },
+];
+
 type FormState = {
   title: string;
   liveLink: string;
   githubLink: string;
   linkedinLink: string;
-  techStack: string;
   category: string;
   date: string;
   hours: string;
@@ -36,7 +89,6 @@ const emptyForm: FormState = {
   liveLink: "",
   githubLink: "",
   linkedinLink: "",
-  techStack: "",
   category: "",
   date: "",
   hours: "",
@@ -73,9 +125,9 @@ const inputClasses =
 export default function AddProjectForm() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [selectedTech, setSelectedTech] = useState<string[]>([]);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   
-  // আপনার আইডিয়া করা কোডের মতো ফাইল অবজেক্ট এবং প্রিভিউ আলাদা স্টেটে রাখা হলো
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   
@@ -86,6 +138,15 @@ export default function AddProjectForm() {
     (key: keyof FormState) =>
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  // টেকনোলজি সিলেক্ট এবং রিমুভ করার হ্যান্ডলার
+  const toggleTechnology = (techName: string) => {
+    setSelectedTech((prev) =>
+      prev.includes(techName)
+        ? prev.filter((t) => t !== techName)
+        : [...prev, techName]
+    );
+  };
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -126,7 +187,6 @@ export default function AddProjectForm() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // ImgBB-তে ফাইল FormData আকারে আপলোড করার মূল মেথড
   const uploadImageToImgBB = async (file: File) => {
     const imgFormData = new FormData();
     imgFormData.append("image", file);
@@ -150,6 +210,11 @@ export default function AddProjectForm() {
     if (!form.shortDescription.trim()) errs.shortDescription = "Required";
     if (!form.fullDescription.trim()) errs.fullDescription = "Required";
     if (form.hours && isNaN(Number(form.hours))) errs.hours = "Enter a number";
+
+    if (selectedTech.length === 0) {
+      toast.error("Please select at least one technology stack.");
+      return false;
+    }
 
     if (imageFiles.length === 0) {
       toast.error("At least one project image is required.");
@@ -176,23 +241,17 @@ export default function AddProjectForm() {
     setSubmitting(true);
 
     try {
-      // ১. সাবমিট করার সময় সমান্তরালভাবে (Parallel) সব ইমেজ ImgBB তে আপলোড করা হচ্ছে
       const uploadedImageUrls = await Promise.all(
         imageFiles.map((file) => uploadImageToImgBB(file))
       );
 
-      // ২. পেলোড ডাটা সাজানো
       const payload = {
         ...form,
         hours: form.hours ? Number(form.hours) : null,
-        techStack: form.techStack
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-        images: uploadedImageUrls, // আপলোড হওয়া ফাইনাল URLs
+        techStack: selectedTech, // অ্যারে সরাসরি চলে যাচ্ছে
+        images: uploadedImageUrls,
       };
 
-      // ৩. আপনার প্রজেক্ট এপিআই এ ডেটা পাঠানো
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -206,6 +265,7 @@ export default function AddProjectForm() {
 
       toast.success("Project added successfully!");
       setForm(emptyForm);
+      setSelectedTech([]);
       setImageFiles([]);
       setImagePreviews([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -243,14 +303,40 @@ export default function AddProjectForm() {
               {errors.title && <ErrorText text={errors.title} />}
             </Field>
 
-            <Field label="Technology stack" hint="comma separated">
+            <Field label="Category">
               <input
                 className={inputClasses}
-                placeholder="React, Tailwind, Node.js"
-                value={form.techStack}
-                onChange={update("techStack")}
+                placeholder="Web app, Mobile, API..."
+                value={form.category}
+                onChange={update("category")}
               />
             </Field>
+
+            <div className="sm:col-span-2">
+              <Field label="Technology stack" hint={`Selected: ${selectedTech.length}`}>
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-[#0b0b12] p-4 sm:grid-cols-3 md:grid-cols-4 max-h-[220px] overflow-y-auto custom-scrollbar">
+                  {AVAILABLE_TECH.map((tech) => {
+                    const Icon = tech.icon;
+                    const isSelected = selectedTech.includes(tech.name);
+                    return (
+                      <button
+                        type="button"
+                        key={tech.name}
+                        onClick={() => toggleTechnology(tech.name)}
+                        className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-all ${
+                          isSelected
+                            ? "border-indigo-500/60 bg-indigo-500/10 text-white shadow-md shadow-indigo-500/5"
+                            : "border-white/5 bg-[#0e0e17] text-slate-400 hover:border-white/10 hover:text-slate-200"
+                        }`}
+                      >
+                        <Icon className={`h-4 w-4 shrink-0 ${isSelected ? tech.color : "text-slate-500"}`} />
+                        <span className="text-xs font-medium truncate">{tech.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+            </div>
 
             <Field label="Short description">
               <input
@@ -262,15 +348,6 @@ export default function AddProjectForm() {
               {errors.shortDescription && (
                 <ErrorText text={errors.shortDescription} />
               )}
-            </Field>
-
-            <Field label="Category">
-              <input
-                className={inputClasses}
-                placeholder="Web app, Mobile, API..."
-                value={form.category}
-                onChange={update("category")}
-              />
             </Field>
 
             <Field label="Date">
