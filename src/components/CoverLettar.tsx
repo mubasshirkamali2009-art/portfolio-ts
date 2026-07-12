@@ -5,9 +5,7 @@
  * accent, orange + teal secondary accents (same as your journey
  * timeline dots), pill-style tags, subtle bordered cards.
  *
- * To update later: edit the `profile`, `personal`, `education`,
- * and `skillGroups` objects below.
- * Put your real resume PDF at `public/resume.pdf`.
+ * Fully optimized for all responsive viewports.
  * -------------------------------------------------------------
  */
 
@@ -83,7 +81,7 @@ export default function CVSection() {
         .cv-section{
           position:relative;
           width:100%;
-          padding:80px 24px;
+          padding:60px 16px;
           background:var(--cv-bg);
           font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
           color:var(--cv-text);
@@ -94,9 +92,6 @@ export default function CVSection() {
           display:grid;
           grid-template-columns:330px 1fr;
           gap:32px;
-        }
-        @media (max-width:800px){
-          .cv-inner{ grid-template-columns:1fr; }
         }
 
         /* ---------- LEFT: profile card ---------- */
@@ -135,16 +130,16 @@ export default function CVSection() {
           margin-bottom:12px;
         }
         .cv-name{
-          font-size:1.32rem;
+          font-size:1.5rem;
           font-weight:800;
-          margin:0 0 4px;
+          margin:0 0 6px;
           line-height:1.3;
         }
         .cv-role{
           color:var(--cv-purple);
-          font-size:.92rem;
+          font-size:1rem;
           font-weight:600;
-          margin:0 0 14px;
+          margin:0 0 16px;
         }
         .cv-bio{
           color:var(--cv-muted);
@@ -155,16 +150,17 @@ export default function CVSection() {
         .cv-contact{
           display:flex;
           flex-direction:column;
-          gap:10px;
-          margin-bottom:18px;
+          gap:12px;
+          margin-bottom:20px;
         }
         .cv-contact-row{
           display:flex;
           align-items:center;
           gap:10px;
-          font-size:.83rem;
+          font-size:.85rem;
           color:var(--cv-muted);
           text-decoration:none;
+          word-break:break-all;
         }
         .cv-contact-row svg{ flex-shrink:0; color:var(--cv-purple); }
         a.cv-contact-row:hover{ color:var(--cv-text); }
@@ -175,8 +171,8 @@ export default function CVSection() {
           margin-bottom:22px;
         }
         .cv-social-btn{
-          width:36px;
-          height:36px;
+          width:38px;
+          height:38px;
           border-radius:10px;
           display:flex;
           align-items:center;
@@ -217,16 +213,16 @@ export default function CVSection() {
         .cv-right{
           display:flex;
           flex-direction:column;
-          gap:28px;
+          gap:24px;
         }
         .cv-card{
           background:var(--cv-card);
           border:1px solid var(--cv-border);
           border-radius:20px;
-          padding:26px 28px;
+          padding:24px;
         }
         .cv-card-heading{
-          font-size:1.1rem;
+          font-size:1.15rem;
           font-weight:800;
           margin:0 0 18px;
         }
@@ -235,22 +231,20 @@ export default function CVSection() {
         .cv-personal-grid{
           display:grid;
           grid-template-columns:1fr 1fr;
-          gap:16px 24px;
-        }
-        @media (max-width:520px){
-          .cv-personal-grid{ grid-template-columns:1fr; }
+          gap:18px 24px;
         }
         .cv-personal-label{
           font-size:.72rem;
           text-transform:uppercase;
           letter-spacing:.04em;
           color:var(--cv-muted);
-          margin:0 0 3px;
+          margin:0 0 4px;
         }
         .cv-personal-value{
-          font-size:.9rem;
+          font-size:.92rem;
           font-weight:600;
           margin:0;
+          line-height:1.4;
         }
 
         /* education timeline */
@@ -274,7 +268,7 @@ export default function CVSection() {
           margin:0 0 4px;
         }
         .cv-edu-title{
-          font-size:1.02rem;
+          font-size:1.05rem;
           font-weight:700;
           margin:0 0 2px;
         }
@@ -298,9 +292,9 @@ export default function CVSection() {
           display:flex;
           align-items:center;
           gap:8px;
-          font-size:.85rem;
+          font-size:.88rem;
           font-weight:700;
-          margin:0 0 10px;
+          margin:0 0 12px;
         }
         .cv-skill-dot{
           width:8px;
@@ -320,6 +314,32 @@ export default function CVSection() {
           border:1px solid var(--cv-border);
           color:var(--cv-text);
           background:rgba(255,255,255,.02);
+        }
+
+        /* Responsive Breakpoint fixes */
+        @media (max-width: 868px) {
+          .cv-inner {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+          .cv-profile {
+            position: relative;
+            top: 0;
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 550px) {
+          .cv-section {
+            padding: 40px 12px;
+          }
+          .cv-personal-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .cv-card {
+            padding: 20px 16px;
+          }
         }
       `}</style>
 
