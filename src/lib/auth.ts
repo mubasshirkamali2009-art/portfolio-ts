@@ -1,10 +1,26 @@
 import dns from 'node:dns'
 dns.setDefaultResultOrder('ipv4first')
+
 import { betterAuth } from "better-auth";
 import { MongoClient } from "mongodb";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 
-const client = new MongoClient(process.env.MONGODB_URI!);
+const uri = process.env.MONGODB_URI!;
+if (!uri) throw new Error("Missing MONGODB_URI");
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _mongoClientPromise: Promise<MongoClient> | undefined;
+}
+
+// Cache the CONNECTED client across warm serverless invocations,
+// instead of letting the driver lazily half-connect on every call.
+if (!global._mongoClientPromise) {
+  const newClient = new MongoClient(uri);
+  global._mongoClientPromise = newClient.connect();
+}
+
+const client = await global._mongoClientPromise;
 const db = client.db("mubasshirpov_db_user");
 
 export const auth = betterAuth({
@@ -12,24 +28,20 @@ export const auth = betterAuth({
     enabled: true,
   },
 
-
   user: {
     additionalFields: {
       role: {
         type: "string",
         required: false,
         defaultValue: "user",
-        input: true, // must be true so signUp.email() can actually set it
+        input: true,
       },
     },
   },
 
   database: mongodbAdapter(db, {
-    // Optional: if you don't provide a client, database transactions won't be enabled.
     client,
   }),
 });
 
-// Reuse this same connection anywhere else on the server (e.g. API
-// routes) instead of opening a second MongoDB connection.
 export { db, client };
