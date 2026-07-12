@@ -13,6 +13,7 @@ import {
   LayoutList,
   Menu,
   X,
+  User,
 } from "lucide-react";
 
 type SessionUser = {
@@ -167,6 +168,17 @@ export default function Navbar() {
                     </div>
                   </div>
 
+                  <div className="my-1 h-px bg-neutral-800" />
+                  
+                  {/* Profile Link inside Desktop Dropdown */}
+                  <Link
+                    href="/profile"
+                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-indigo-300"
+                  >
+                    <User className="h-4 w-4" />
+                    Profile
+                  </Link>
+
                   {/* dropdown already correctly gated to admin only */}
                   {isAdmin && (
                     <>
@@ -274,6 +286,16 @@ export default function Navbar() {
                     <p className="truncate text-xs text-neutral-500">{user.email}</p>
                   </div>
                 </div>
+                
+                {/* Profile Link inside Mobile Menu */}
+                <Link
+                  href="/profile"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-neutral-300 transition-colors hover:bg-neutral-900 hover:text-neutral-100"
+                >
+                  <User className="h-4 w-4" />
+                  Profile
+                </Link>
+
                 <button
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-red-400 transition-colors hover:bg-red-500/10"

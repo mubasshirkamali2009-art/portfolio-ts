@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, Variants } from "framer-motion";
-import { Loader2, ArrowUpRight, Star } from "lucide-react";
+import { Loader2, ArrowUpRight, Star, Search } from "lucide-react";
 
 interface Project {
   _id: string;
@@ -11,11 +11,17 @@ interface Project {
   images: string[];
   category?: string;
   averageRating?: number;
+  createdAt?: string; // used for "Recent" sorting — optional so nothing breaks if a project doesn't have it
 }
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // --- new: search / filter / sort state ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sortBy, setSortBy] = useState<"recent" | "rating" | "az">("recent");
 
   useEffect(() => {
     async function fetchProjects() {
@@ -43,7 +49,47 @@ export default function ProjectsPage() {
       }
     }
     fetchProjects();
-  }, []); // এখানে সিনট্যাক্স এররটি ফিক্স করা হয়েছে
+  }, []); // এখানে সিনট্যাক্স এররটি ফিক্স করা হয়েছে
+
+  // --- new: derive available categories from the loaded projects ---
+  const categories = useMemo(() => {
+    const unique = Array.from(
+      new Set(projects.map((p) => p.category).filter((c): c is string => Boolean(c)))
+    );
+    return ["All", ...unique];
+  }, [projects]);
+
+  // --- new: apply search, category filter, and sort ---
+  const filteredProjects = useMemo(() => {
+    let result = [...projects];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.shortDescription.toLowerCase().includes(q)
+      );
+    }
+
+    if (selectedCategory !== "All") {
+      result = result.filter((p) => p.category === selectedCategory);
+    }
+
+    if (sortBy === "rating") {
+      result.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+    } else if (sortBy === "az") {
+      result.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortBy === "recent") {
+      result.sort((a, b) => {
+        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return db - da;
+      });
+    }
+
+    return result;
+  }, [projects, searchQuery, selectedCategory, sortBy]);
 
   if (loading) {
     return (
@@ -88,13 +134,56 @@ export default function ProjectsPage() {
           </motion.p>
         </div>
 
+        {/* --- new: search + filter + sort controls --- */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search projects..."
+              className="w-full rounded-xl border border-white/10 bg-[#0f0f18] py-2.5 pl-9 pr-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-indigo-500/50"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="rounded-xl border border-white/10 bg-[#0f0f18] px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-indigo-500/50"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat} className="bg-[#0f0f18]">
+                  {cat}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "recent" | "rating" | "az")}
+              className="rounded-xl border border-white/10 bg-[#0f0f18] px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-indigo-500/50"
+            >
+              <option value="recent" className="bg-[#0f0f18]">Most Recent</option>
+              <option value="rating" className="bg-[#0f0f18]">Highest Rated</option>
+              <option value="az" className="bg-[#0f0f18]">A–Z</option>
+            </select>
+          </div>
+        </motion.div>
+
         <motion.div 
           variants={containerVariants}
           initial="hidden"
           animate="show"
           className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
         >
-          {projects.map((project) => (
+          {filteredProjects.map((project) => (
             <Link key={project._id} href={`/projects/${project._id}`}>
               <motion.div
                 variants={cardVariants}
@@ -139,9 +228,11 @@ export default function ProjectsPage() {
           ))}
         </motion.div>
 
-        {projects.length === 0 && (
+        {filteredProjects.length === 0 && (
           <div className="text-center py-20 text-slate-500">
-            No projects found. Check back later!
+            {projects.length === 0
+              ? "No projects found. Check back later!"
+              : "No projects match your search/filter."}
           </div>
         )}
       </div>
