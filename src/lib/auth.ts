@@ -10,17 +10,18 @@ if (!uri) throw new Error("Missing MONGODB_URI");
 
 declare global {
   // eslint-disable-next-line no-var
-  var _mongoClientPromise: Promise<MongoClient> | undefined;
+  var _mongoClient: MongoClient | undefined;
 }
 
-// Cache the CONNECTED client across warm serverless invocations,
-// instead of letting the driver lazily half-connect on every call.
-if (!global._mongoClientPromise) {
-  const newClient = new MongoClient(uri);
-  global._mongoClientPromise = newClient.connect();
+// Reuse the same client instance across dev hot-reloads.
+// No top-level connect/await here — the driver connects lazily
+// on first real query, so this module stays side-effect-free
+// during Next.js's build-time "collecting page data" step.
+const client = global._mongoClient ?? new MongoClient(uri);
+if (process.env.NODE_ENV !== "production") {
+  global._mongoClient = client;
 }
 
-const client = await global._mongoClientPromise;
 const db = client.db("mubasshirpov_db_user");
 
 export const auth = betterAuth({
