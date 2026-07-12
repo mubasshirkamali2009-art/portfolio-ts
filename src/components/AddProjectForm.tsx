@@ -403,20 +403,7 @@ export default function AddProjectForm() {
               {errors.githubLink && <ErrorText text={errors.githubLink} />}
             </Field>
 
-            <Field label="LinkedIn post">
-              <div className="relative">
-                <FaLinkedin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  className={`${inputClasses} pl-9`}
-                  placeholder="https://linkedin.com/posts/..."
-                  value={form.linkedinLink}
-                  onChange={update("linkedinLink")}
-                />
-              </div>
-              {errors.linkedinLink && (
-                <ErrorText text={errors.linkedinLink} />
-              )}
-            </Field>
+           
           </div>
 
           {/* Purpose */}
