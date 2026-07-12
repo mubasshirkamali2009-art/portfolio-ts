@@ -17,7 +17,13 @@ declare global {
 // No top-level connect/await here — the driver connects lazily
 // on first real query, so this module stays side-effect-free
 // during Next.js's build-time "collecting page data" step.
-const client = global._mongoClient ?? new MongoClient(uri);
+const client = global._mongoClient ?? new MongoClient(uri, {
+  maxPoolSize: 5,
+  minPoolSize: 0,
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 20000,
+});
+
 if (process.env.NODE_ENV !== "production") {
   global._mongoClient = client;
 }
