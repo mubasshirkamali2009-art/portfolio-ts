@@ -13,9 +13,10 @@ declare global {
   var _mongoClient: MongoClient | undefined;
 }
 
+// 1. Check if a global client already exists, otherwise create a new one
 if (!global._mongoClient) {
   global._mongoClient = new MongoClient(uri, {
-    maxPoolSize: 5,
+    maxPoolSize: 5,       // Kept small for serverless environments
     minPoolSize: 0,
     serverSelectionTimeoutMS: 10000,
     socketTimeoutMS: 20000,
@@ -23,6 +24,8 @@ if (!global._mongoClient) {
 }
 
 const client = global._mongoClient;
+
+// 2. Get the database instance from the cached client
 const db = client.db("mubasshirpov_db_user");
 
 export const auth = betterAuth({
@@ -41,9 +44,8 @@ export const auth = betterAuth({
     },
   },
 
-  // Passing the raw URI string lets Better Auth orchestrate the connection pool parameters explicitly 
-  database: mongodbAdapter(uri, {
-    dbName: "mubasshirpov_db_user"
+  database: mongodbAdapter(db, {
+    client,
   }),
 });
 
