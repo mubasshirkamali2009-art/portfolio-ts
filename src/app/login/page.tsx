@@ -16,6 +16,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [keyPressed, setKeyPressed] = useState(false);
   const [spacePressed, setSpacePressed] = useState(false);
 
@@ -72,7 +73,28 @@ export default function LoginForm() {
     router.refresh();
   }
 
-  // আগের কোডের সব অ্যারে রেন্ডারিং সেফটির জন্য রেখে দেওয়া হলো
+  async function handleGoogleLogin() {
+    setError("");
+    setIsGoogleSubmitting(true);
+
+    const loadingToast = toast.loading("Redirecting to Google...");
+
+    const { error: signInError } = await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/",
+    });
+
+    toast.dismiss(loadingToast);
+    setIsGoogleSubmitting(false);
+
+    if (signInError) {
+      setError(signInError.message ?? "Google sign-in failed.");
+      toast.error(signInError.message ?? "Google sign-in failed.");
+    }
+    // On success, better-auth handles the redirect to Google automatically.
+  }
+
+  // আগের কোডের সব অ্যারে রেন্ডারিং সেফটির জন্য রেখে দেওয়া হলো
   const funcRow = Array.from({ length: 13 });
   const numRow = Array.from({ length: 13 });
   const qwertyRow = Array.from({ length: 12 });
@@ -170,6 +192,43 @@ export default function LoginForm() {
               }`}
             >
               Try with Demo Account
+            </button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 py-1">
+              <div className="h-px flex-1 bg-neutral-800" />
+              <span className="text-[11px] uppercase tracking-wide text-neutral-500">
+                or
+              </span>
+              <div className="h-px flex-1 bg-neutral-800" />
+            </div>
+
+            {/* Google Sign In Button */}
+            <button
+              type="button"
+              disabled={isGoogleSubmitting}
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-neutral-800 bg-neutral-950 py-3 text-sm font-medium text-neutral-200 transition-all hover:bg-neutral-900 hover:border-neutral-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="#4285F4"
+                  d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.54 5.54 0 0 1-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.17 3.54-8.9z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.07 7.93-2.9l-3.88-3.02c-1.08.72-2.45 1.15-4.05 1.15-3.12 0-5.76-2.1-6.7-4.93H1.29v3.11A12 12 0 0 0 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.3 14.3A7.2 7.2 0 0 1 4.93 12c0-.8.14-1.57.37-2.3V6.59H1.29A12 12 0 0 0 0 12c0 1.94.46 3.77 1.29 5.41z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.77c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.94 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.29 6.59l4.01 3.11C6.24 6.87 8.88 4.77 12 4.77z"
+                />
+              </svg>
+              {isGoogleSubmitting ? "Redirecting..." : "Continue with Google"}
             </button>
           </div>
 

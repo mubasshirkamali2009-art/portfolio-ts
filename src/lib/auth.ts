@@ -1,7 +1,7 @@
 import dns from 'node:dns'
 dns.setDefaultResultOrder('ipv4first')
-
-import { betterAuth, jwt } from "better-auth";
+import { jwt } from "better-auth/plugins"
+import { betterAuth, } from "better-auth";
 import { MongoClient } from "mongodb";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 
@@ -57,6 +57,20 @@ clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
   database: mongodbAdapter(db, {
     client,
   }),
+
+
+cookie: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    sameSite: "lax",
+  },
+
+  plugins: [
+    jwt() 
+  ]
+
+
+
 });
 
 export { db, client };

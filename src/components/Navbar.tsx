@@ -85,6 +85,8 @@ export default function Navbar() {
     { href: "/", label: "Home" },
     { href: "/projects", label: "Projects" },
     { href: "/about", label: "About" },
+    // সবসময় দেখাবে — login না থাকলে /messages page নিজেই /login এ redirect করে দেয়
+    { href: "/messages", label: "Messages" },
   ];
 
   return (
@@ -169,7 +171,7 @@ export default function Navbar() {
                   </div>
 
                   <div className="my-1 h-px bg-neutral-800" />
-                  
+
                   {/* Profile Link inside Desktop Dropdown */}
                   <Link
                     href="/profile"
@@ -286,7 +288,7 @@ export default function Navbar() {
                     <p className="truncate text-xs text-neutral-500">{user.email}</p>
                   </div>
                 </div>
-                
+
                 {/* Profile Link inside Mobile Menu */}
                 <Link
                   href="/profile"
