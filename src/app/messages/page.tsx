@@ -3,6 +3,7 @@ import { auth, db } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { ObjectId } from "mongodb";
 import ChatWindow from "@/components/ChatWindow";
 
 export default async function MessagesPage() {
@@ -16,15 +17,63 @@ export default async function MessagesPage() {
 
   // ── Admin view: inbox / conversation list ──────────────────────────
   if (role === "admin") {
-    const res = await fetch(
-      `${process.env.BETTER_AUTH_URL || "http://localhost:3000"}/api/messages/conversations`,
-      {
-        headers: await headers(),
-        cache: "no-store",
+    const ownerId = session.user.id;
+
+    // নিজের API কে fetch করার বদলে সরাসরি DB থেকে query — Vercel/production এ
+    // internal fetch করলে localhost বা relative URL এর সমস্যায় 500 error হতে পারে,
+    // সরাসরি DB access এই সমস্যা এড়িয়ে যায় এবং দ্রুতও হয়
+    const rawMessages = await db
+      .collection("messages")
+      .find({
+        $or: [{ senderId: ownerId }, { receiverId: ownerId }],
+      })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    const conversationMap = new Map<
+      string,
+      { lastMessage: string; lastAt: Date; unreadCount: number }
+    >();
+
+    for (const m of rawMessages) {
+      const otherId = m.senderId === ownerId ? m.receiverId : m.senderId;
+
+      if (!conversationMap.has(otherId)) {
+        conversationMap.set(otherId, {
+          lastMessage: m.text,
+          lastAt: m.createdAt,
+          unreadCount: 0,
+        });
       }
-    );
-    const data = await res.json();
-    const conversations = data.conversations ?? [];
+
+      if (m.receiverId === ownerId && !m.read) {
+        conversationMap.get(otherId)!.unreadCount += 1;
+      }
+    }
+
+    const otherIds = Array.from(conversationMap.keys());
+
+    const users = otherIds.length
+      ? await db
+          .collection("user")
+          .find({ _id: { $in: otherIds.map((id) => new ObjectId(id)) } })
+          .toArray()
+      : [];
+
+    const conversations = otherIds
+      .map((id) => {
+        const u = users.find((usr) => usr._id.toString() === id);
+        const meta = conversationMap.get(id)!;
+        return {
+          userId: id,
+          name: u?.name ?? "Unknown",
+          image: u?.image ?? null,
+          lastMessage: meta.lastMessage,
+          lastAt: meta.lastAt,
+          unreadCount: meta.unreadCount,
+        };
+      })
+      .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime());
 
     return (
       <div className="min-h-screen w-full bg-neutral-950 px-4 py-12 sm:px-6 lg:px-8">
@@ -46,7 +95,7 @@ export default async function MessagesPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {conversations.map((c: any) => (
+              {conversations.map((c) => (
                 <Link
                   key={c.userId}
                   href={`/messages/${c.userId}`}
@@ -103,7 +152,7 @@ export default async function MessagesPage() {
             Message
           </h1>
           <p className="mt-1 text-sm text-neutral-400">
-           Dirrect chat with me
+            সরাসরি আমার সাথে কথা বলো
           </p>
         </div>
         <ChatWindow
