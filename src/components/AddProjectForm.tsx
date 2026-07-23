@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useRef, ChangeEvent, DragEvent, FormEvent } from "react";
 import {
@@ -41,7 +42,7 @@ import {
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
-const IMGBB_API_KEY = "e3eeed8b6ec741ec8f894c190fdeeff1"; 
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY
 const MAX_IMAGES = 5;
 
 // সহজ ম্যাপ করার জন্য গ্লোবাল টেকনোলজি লিস্ট ডিক্লেয়ার করা হলো
