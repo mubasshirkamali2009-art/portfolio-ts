@@ -43,17 +43,17 @@ const skillGroups = [
   {
     heading: "Frontend",
     color: "purple",
-    skills: ["React.js", "Next.js", "TypeScript", "Tailwind CSS", "DaisyUI", "Hero UI", "Framer Motion", "HTML", "CSS"],
+    skills: ["React.js", "Next.js", "TypeScript", "Tailwind CSS", "DaisyUI", "Hero UI", "Framer Motion", "HTML", "CSS" , "Javascript" , "Card operetion" , "Responsive Ui" , "AI Implimention" , "AI Copilot"],
   },
   {
     heading: "Backend",
     color: "orange",
-    skills: ["Node.js", "Express.js", "JWT Auth", "Better Auth", "Context Engineering"],
+    skills: ["Node.js", "Express.js", "JWT Auth", "Better Auth", "Context Engineering" , "MongoDB" , "AI LLM"] ,
   },
   {
     heading: "Currently Exploring",
     color: "teal",
-    skills: ["Email / Mail Service Integration"],
+    skills: ["Email / Mail Service Integration" , "React native" , "python" , ],
   },
 ];
 
